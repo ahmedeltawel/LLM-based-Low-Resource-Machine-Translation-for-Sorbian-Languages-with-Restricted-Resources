@@ -1,0 +1,5 @@
+--extra-index-url https://download.pytorch.org/whl/cu124
+torch==2.6.0
+torchvision==0.21.0
+torchaudio==2.6.0
+llamafactory @ git+https://github.com/hiyouga/LLaMA-Factory.git@ecca167eb4b902561f66e5392635b01d296fad90

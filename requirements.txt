@@ -1,0 +1,16 @@
+--extra-index-url https://download.pytorch.org/whl/cu124
+torch==2.6.0
+transformers==5.2.0
+tokenizers==0.22.2
+datasets==4.0.0
+accelerate==1.11.0
+huggingface_hub==1.11.0
+safetensors==0.7.0
+einops
+triton==3.2.0
+sacrebleu==2.6.0
+numpy==2.4.3
+pandas==2.3.3
+pyarrow==24.0.0
+tqdm==4.67.3
+stopes==2.2.1
