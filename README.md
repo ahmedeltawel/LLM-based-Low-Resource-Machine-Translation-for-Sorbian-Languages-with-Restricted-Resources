@@ -5,6 +5,16 @@ It trains decoder-only language models to translate German into Upper Sorbian (`
 and Lower Sorbian (`dsb`) in the setting of the WMT25 shared task on LLMs with limited
 resources for Slavic languages.
 
+## Models
+
+| Model | Description |
+|-------|-------------|
+| [ahmedeltawel/Qwen3.5-4B-hsb-dsb](https://huggingface.co/ahmedeltawel/Qwen3.5-4B-hsb-dsb) | Weight average of the two Qwen3.5-4B runs (step 7) |
+| [ahmedeltawel/Qwen3.5-0.8B-hsb-dsb](https://huggingface.co/ahmedeltawel/Qwen3.5-0.8B-hsb-dsb) | Qwen3.5-0.8B-Base trained with the forward-translated pairs (`qwen35_08b_0p25x`) |
+| [ahmedeltawel/Qwen2.5-1.5B-Instruct-hsb-dsb](https://huggingface.co/ahmedeltawel/Qwen2.5-1.5B-Instruct-hsb-dsb) | NRC recipe |
+
+The models are licensed under CC BY-NC-SA 4.0, following the licence of the Sorbian training data.
+
 ## Setup
 
 Python 3.11, `git`, `wget` and CUDA GPUs. Steps 3 and 6 and the NRC training use four
@@ -73,12 +83,12 @@ and `METRIC` (step 9, `chrf` or `bleu`), `NRC_DIR`, `NRC_DATASET_DIR` and
 ## Translating German text
 
 ```bash
-python decoding/translate.py --model runs/qwen35_4b_avg/model --target hsb \
+python decoding/translate.py --model ahmedeltawel/Qwen3.5-4B-hsb-dsb --target hsb \
     --input input.de.txt --output output.hsb.txt
 ```
 
 The input has one German sentence per line. Use `--target dsb` for Lower Sorbian.
-`--model` also accepts a Hugging Face model id.
+`--model` also accepts a local model directory such as `runs/qwen35_4b_avg/model`.
 
 ## NRC recipe
 
