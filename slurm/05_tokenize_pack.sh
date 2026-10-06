@@ -48,16 +48,4 @@ python -u replications/tartunlp_qwen35/05_pack_and_mix.py \
   --out "$FINAL" \
   --seed "$PACK_SEED"
 
-python - "$FINAL/training_data" <<'PY'
-import sys
-from datasets import load_from_disk
-ds = load_from_disk(sys.argv[1])
-n = len(ds)
-s = len(ds[0]["input_ids"])
-print(f"packed rows={n} seq_len={s} tokens={n*s}")
-print(f"2391 steps need {2391*128:,} sequences -> {100*2391*128/n:.1f}% of one pass")
-if n < 2391 * 128:
-    print(f"fewer sequences than the 2391-step budget; training repeats {2391 * 128 - n:,} sequences in a second pass")
-PY
-
 echo "tokenize-pack VARIANT=$VARIANT end=$(date)"

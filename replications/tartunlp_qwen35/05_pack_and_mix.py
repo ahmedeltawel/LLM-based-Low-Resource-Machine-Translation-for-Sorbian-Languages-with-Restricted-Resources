@@ -4,7 +4,8 @@ import os
 import random
 import shutil
 from pathlib import Path
-from datasets import load_from_disk, Dataset, concatenate_datasets
+
+from datasets import Dataset, concatenate_datasets, load_from_disk
 
 DATA_ROOT = os.environ.get("DATA_ROOT", "data")
 VARIANT = os.environ.get("VARIANT", "0p25x")

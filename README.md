@@ -3,7 +3,9 @@
 Code for the Master's thesis by Ahmed Eltawel (Technical University of Munich, 2026).
 It trains decoder-only language models to translate German into Upper Sorbian (`hsb`)
 and Lower Sorbian (`dsb`) in the setting of the WMT25 shared task on LLMs with limited
-resources for Slavic languages.
+resources for Slavic languages. The repository contains the pipeline that produces the three
+released models. Training follows the TartuNLP system ([Purason and Fishel, 2025](https://aclanthology.org/2025.wmt-1.88/)); the
+Qwen2.5-1.5B model re-implements the NRC system ([Larkin et al., 2025](https://aclanthology.org/2025.wmt-1.87/)).
 
 ## Models
 
@@ -11,9 +13,9 @@ resources for Slavic languages.
 |-------|-------------|
 | [ahmedeltawel/Qwen3.5-4B-hsb-dsb](https://huggingface.co/ahmedeltawel/Qwen3.5-4B-hsb-dsb) | Weight average of the two Qwen3.5-4B runs (step 7) |
 | [ahmedeltawel/Qwen3.5-0.8B-hsb-dsb](https://huggingface.co/ahmedeltawel/Qwen3.5-0.8B-hsb-dsb) | Qwen3.5-0.8B-Base trained with the forward-translated pairs (`qwen35_08b_0p25x`) |
-| [ahmedeltawel/Qwen2.5-1.5B-Instruct-hsb-dsb](https://huggingface.co/ahmedeltawel/Qwen2.5-1.5B-Instruct-hsb-dsb) | NRC recipe |
+| [ahmedeltawel/Qwen2.5-1.5B-Instruct-hsb-dsb](https://huggingface.co/ahmedeltawel/Qwen2.5-1.5B-Instruct-hsb-dsb) | Qwen2.5-1.5B-Instruct fine-tuned with the NRC recipe |
 
-The models are licensed under CC BY-NC-SA 4.0, following the licence of the Sorbian training data.
+The models are licensed under CC BY-NC-SA 4.0, following the license of the Sorbian training data.
 
 ## Setup
 
@@ -37,7 +39,7 @@ Every step in `slurm/` runs from the repository root, either as a Slurm job
 (`sbatch slurm/<step>.sh`, add your cluster's partition options) or directly
 (`bash slurm/<step>.sh`). Start each step only after the one before it has finished.
 If you change `NUM_GPUS`, request the same number of GPUs from Slurm
-(`sbatch --gres=gpu:N ...`). Steps 1 to 3 need internet access.
+(`sbatch --gres=gpu:N ...`). Steps 1 and 3 need internet access.
 
 ## Pipeline
 
@@ -57,8 +59,8 @@ Step 4 removes duplicate German-Sorbian pairs and every pair that matches a pair
 WMT25 development sets, in both translation directions. Training takes its translation
 pairs only from this cleaned data; the monolingual and instruction data come from step 2.
 
-`VARIANT` selects the translation data: `0p25x` (with the forward-translated pairs) or
-`base` (without them). `MODEL` selects the model: `qwen35_08b` (Qwen3.5-0.8B-Base),
+`VARIANT` selects the translation data: `0p25x` (with the 159,000 forward-translated pairs,
+about a quarter of the German-Upper Sorbian parallel data) or `base` (without them). `MODEL` selects the model: `qwen35_08b` (Qwen3.5-0.8B-Base),
 `qwen35_2b` (Qwen3.5-2B) or `qwen35_4b` (Qwen3.5-4B). Model revisions are pinned in
 `model_backbone_experiments/configs/`. Training runs 2,391 steps with 128 sequences of
 4,096 tokens per step and cannot be resumed, so give step 6 enough time on slower GPUs
@@ -76,8 +78,8 @@ outputs to `results/<name>/samples_deu-{hsb,dsb}.jsonl`. Step 9 compares two res
 a paired bootstrap test (10,000 resamples).
 
 Optional variables: `NUM_SHARDS` (step 3, default 4), `MODEL_A`, `MODEL_B` and
-`AVERAGE_DIR` (step 7), `BATCH_SIZE` (step 8, default 8), `REPS` (step 9, default 10000)
-and `METRIC` (step 9, `chrf` or `bleu`), `NRC_DIR`, `NRC_DATASET_DIR` and
+`AVERAGE_DIR` (step 7), `BATCH_SIZE` (step 8, default 8), `REPS` (step 9, default 10000),
+`METRIC` (step 9, `chrf` or `bleu`, default `chrf`), and `NRC_DIR`, `NRC_DATASET_DIR` and
 `NRC_OUTPUT_DIR` (NRC steps).
 
 ## Translating German text
@@ -89,6 +91,8 @@ python decoding/translate.py --model ahmedeltawel/Qwen3.5-4B-hsb-dsb --target hs
 
 The input has one German sentence per line. Use `--target dsb` for Lower Sorbian.
 `--model` also accepts a local model directory such as `runs/qwen35_4b_avg/model`.
+`translate.py` uses the prompt of the two Qwen3.5 models; the NRC model expects the tagged
+prompt shown on its model card.
 
 ## NRC recipe
 
@@ -102,8 +106,9 @@ sbatch slurm/nrc_02_train.sh
 PROMPT_FORMAT=nrc sbatch slurm/08_evaluate.sh
 ```
 
-Training runs 66,820 steps. If `nrc_02_train.sh` reaches its time limit, submit it again;
-LLaMA-Factory continues from the last checkpoint in `runs/nrc_qwen25_15b`.
+Training runs 20 epochs (66,840 steps). If `nrc_02_train.sh` reaches its time limit, submit it
+again; LLaMA-Factory continues from the last checkpoint in `NRC_OUTPUT_DIR` (default
+`runs/nrc_qwen25_15b`).
 
 ## Repository layout
 
@@ -124,4 +129,4 @@ replications/nrc/              NRC recipe
 
 The corpora are not included. They are downloaded from their original sources: the WMT
 shared tasks on Sorbian (2020-2022, 2025), FineWeb-2, Wikipedia, Magpie, FLAN v2,
-OpenAssistant 2, Aya and German News Crawl 2023. Each keeps its own licence.
+OpenAssistant 2, Aya and German News Crawl 2023. Each keeps its own license.

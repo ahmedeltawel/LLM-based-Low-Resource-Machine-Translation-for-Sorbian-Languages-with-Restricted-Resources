@@ -3,10 +3,11 @@ import argparse
 import os
 import unicodedata
 from pathlib import Path
+
 from datasets import load_from_disk
 from stopes.pipelines.monolingual.utils.text_normalizer import (
-    replace_unicode_punct,
     remove_non_printing_char,
+    replace_unicode_punct,
 )
 
 
@@ -34,7 +35,7 @@ def load_devtest_parallel_pairs(data_dir):
             continue
         try:
             with open(f, "r", encoding="utf-8") as fh:
-                lines = [l.strip() for l in fh if l.strip()]
+                lines = [line.strip() for line in fh if line.strip()]
 
             if ".tsv" in f.name:
                 for line in lines:
@@ -68,19 +69,17 @@ def dedup_monolingual_sentences(lang, excluded_lines, data_dir, output_dir):
         for f in sorted(wmt_dir.iterdir()):
             if f.suffix in (".gz", ".tar", ".tgz"):
                 continue
-            if f.name in ("dataset_info.json", "state.json"):
-                continue
             if f.is_dir():
                 continue
             try:
                 with open(f, "r", encoding="utf-8") as fh:
-                    lines = [l.strip() for l in fh if l.strip()]
+                    lines = [line.strip() for line in fh if line.strip()]
                 sources[f.name] = len(lines)
                 all_lines.extend(lines)
             except UnicodeDecodeError:
                 print(f"  Skipping {f.name} (encoding error)")
 
-    print(f"  Sources loaded:")
+    print("  Sources loaded:")
     for name, count in sources.items():
         print(f"    {name}: {count:,} lines")
     print(f"  Total before dedup: {len(all_lines):,}")
@@ -119,7 +118,7 @@ def dedup_monolingual_sentences(lang, excluded_lines, data_dir, output_dir):
     return len(deduped), word_count, char_count
 
 
-def dedup_monolingual_documents(lang, excluded_lines, data_dir, output_dir):
+def dedup_monolingual_documents(lang, data_dir, output_dir):
     print(f"\nDeduplicating {lang.upper()} document-level monolingual data")
 
     out_dir = output_dir / "monolingual" / lang
@@ -206,9 +205,9 @@ def dedup_parallel(pair_name, src_lang, tgt_lang, excluded_pairs, excluded_lines
 
             if tgt_file:
                 with open(f, "r", encoding="utf-8") as fh:
-                    src_lines = [l.strip() for l in fh]
+                    src_lines = [line.strip() for line in fh]
                 with open(tgt_file, "r", encoding="utf-8") as fh:
-                    tgt_lines = [l.strip() for l in fh]
+                    tgt_lines = [line.strip() for line in fh]
 
                 if len(src_lines) == len(tgt_lines):
                     pairs = [(s, t) for s, t in zip(src_lines, tgt_lines) if s and t]
@@ -264,7 +263,7 @@ def dedup_parallel(pair_name, src_lang, tgt_lang, excluded_pairs, excluded_lines
 def main():
     data_root = os.environ.get("DATA_ROOT", "data")
     parser = argparse.ArgumentParser(
-        description="Deduplicate monolingual and parallel data with Stopes normalisation and remove dev/test lines"
+        description="Deduplicate monolingual and parallel data with Stopes normalization and remove dev/test lines"
     )
     parser.add_argument(
         "--raw-dir",
@@ -291,8 +290,8 @@ def main():
     hsb_sent, hsb_sent_w, hsb_sent_c = dedup_monolingual_sentences("hsb", excluded_lines, data_dir, output_dir)
     dsb_sent, dsb_sent_w, dsb_sent_c = dedup_monolingual_sentences("dsb", excluded_lines, data_dir, output_dir)
 
-    hsb_doc, hsb_doc_w, hsb_doc_c = dedup_monolingual_documents("hsb", excluded_lines, data_dir, output_dir)
-    dsb_doc, dsb_doc_w, dsb_doc_c = dedup_monolingual_documents("dsb", excluded_lines, data_dir, output_dir)
+    hsb_doc, hsb_doc_w, hsb_doc_c = dedup_monolingual_documents("hsb", data_dir, output_dir)
+    dsb_doc, dsb_doc_w, dsb_doc_c = dedup_monolingual_documents("dsb", data_dir, output_dir)
 
     de_hsb = dedup_parallel("de-hsb", "de", "hsb", excluded_pairs, excluded_lines, data_dir, output_dir)
     de_dsb = dedup_parallel("de-dsb", "de", "dsb", excluded_pairs, excluded_lines, data_dir, output_dir)
@@ -300,26 +299,24 @@ def main():
 
     print("\nDEDUPLICATION SUMMARY")
 
-    print(f"\nMonolingual HSB:")
+    print("\nMonolingual HSB:")
     print(f"  Sentence-level: {hsb_sent:>10,} texts, {hsb_sent_w:>12,} words, {hsb_sent_c:>14,} chars")
     print(f"  Document-level: {hsb_doc:>10,} docs,  {hsb_doc_w:>12,} words, {hsb_doc_c:>14,} chars")
     hsb_total_w = hsb_sent_w + hsb_doc_w
     hsb_total_c = hsb_sent_c + hsb_doc_c
     print(f"  Combined:                    {hsb_total_w:>12,} words, {hsb_total_c:>14,} chars")
-    print(f"  Paper:    1,700,000 texts,    35,900,000 words,    240,600,000 chars")
 
-    print(f"\nMonolingual DSB:")
+    print("\nMonolingual DSB:")
     print(f"  Sentence-level: {dsb_sent:>10,} texts, {dsb_sent_w:>12,} words, {dsb_sent_c:>14,} chars")
     print(f"  Document-level: {dsb_doc:>10,} docs,  {dsb_doc_w:>12,} words, {dsb_doc_c:>14,} chars")
     dsb_total_w = dsb_sent_w + dsb_doc_w
     dsb_total_c = dsb_sent_c + dsb_doc_c
     print(f"  Combined:                    {dsb_total_w:>12,} words, {dsb_total_c:>14,} chars")
-    print(f"  Paper:      169,800 texts,     4,400,000 words,     28,400,000 chars")
 
-    print(f"\nParallel (after dedup):")
-    print(f"  de-hsb:  {de_hsb:>10,}  (paper: 636,300)")
-    print(f"  de-dsb:  {de_dsb:>10,}  (paper: 212,200)")
-    print(f"  dsb-hsb: {dsb_hsb:>10,}  (paper:  62,600)")
+    print("\nParallel (after dedup):")
+    print(f"  de-hsb:  {de_hsb:>10,}")
+    print(f"  de-dsb:  {de_dsb:>10,}")
+    print(f"  dsb-hsb: {dsb_hsb:>10,}")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,8 @@
-import argparse, csv, os, re
+#!/usr/bin/env python3
+import argparse
+import csv
+import os
+import re
 from collections import Counter
 
 REPEAT_RE = re.compile(r"\b(\S+)(?:\s+\1\b){3,}", re.UNICODE)
@@ -6,8 +10,8 @@ REPEAT_RE = re.compile(r"\b(\S+)(?:\s+\1\b){3,}", re.UNICODE)
 
 def is_bad(de: str, hsb: str) -> str:
     hsb = hsb.strip()
-    de  = de.strip()
-    if not hsb or hsb == "[invalid]" or len(hsb) < 3:
+    de = de.strip()
+    if not hsb or len(hsb) < 3:
         return "empty"
     ld, lh = len(de), len(hsb)
     if lh < 0.5 * ld or lh > 2.0 * ld:
@@ -21,14 +25,20 @@ def is_bad(de: str, hsb: str) -> str:
 
 def main():
     data_root = os.environ.get("DATA_ROOT", "data")
-    ap = argparse.ArgumentParser(description="Merge the translated shards and drop empty, length-mismatched, repetitive and copied outputs.")
-    ap.add_argument("--in-dir", default=f"{data_root}/augmentation/translated",
-                    help="directory with shard*.csv from 03_translate.py")
-    ap.add_argument("--out", default=f"{data_root}/augmentation/clean.csv")
-    args = ap.parse_args()
+    parser = argparse.ArgumentParser(
+        description="Merge the translated shards and drop empty, length-mismatched, repetitive and copied outputs."
+    )
+    parser.add_argument(
+        "--in-dir",
+        default=f"{data_root}/augmentation/translated",
+        help="directory with shard*.csv from 03_translate.py",
+    )
+    parser.add_argument("--out", default=f"{data_root}/augmentation/clean.csv")
+    args = parser.parse_args()
 
-    shards = sorted(f for f in os.listdir(args.in_dir)
-                    if f.startswith("shard") and f.endswith(".csv"))
+    shards = sorted(
+        f for f in os.listdir(args.in_dir) if f.startswith("shard") and f.endswith(".csv")
+    )
     print("Shards:", shards)
     stats = Counter()
     written = 0
@@ -41,7 +51,9 @@ def main():
                 r = csv.reader(fi)
                 next(r, None)
                 for row in r:
-                    if len(row) != 2: stats["malformed"] += 1; continue
+                    if len(row) != 2:
+                        stats["malformed"] += 1
+                        continue
                     de, hsb = row
                     why = is_bad(de, hsb)
                     if why:

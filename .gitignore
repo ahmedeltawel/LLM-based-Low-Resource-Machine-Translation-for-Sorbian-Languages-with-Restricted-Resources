@@ -4,9 +4,6 @@ runs/
 results/
 logs/*
 !logs/.gitkeep
-checkpoints/
-outputs/
-wandb/
 .cache/
 
 *.md

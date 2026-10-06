@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-from __future__ import annotations
-
 import argparse
 import json
 import os
@@ -88,7 +86,7 @@ def verify(rows, label):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Map the NRC Table 1 corpora to files under the raw data directory and write manifest.json.")
+    parser = argparse.ArgumentParser(description="Map the NRC training and development corpora to files under the raw data directory, check their line counts and write manifest.json.")
     parser.add_argument("--raw-dir", type=Path, default=DATA_ROOT / "raw")
     parser.add_argument("--out", type=Path, default=DATA_ROOT / "nrc" / "manifest.json")
     args = parser.parse_args()
@@ -98,16 +96,16 @@ def main():
     if not raw.exists():
         print(f"ERROR: {raw} not found. Download the raw data first.", file=sys.stderr)
         sys.exit(2)
-    train_man, train_ok = verify(train_corpora(raw), "Training corpora (NRC paper Table 1, train section)")
-    dev_man, dev_ok = verify(dev_sets(raw), "Dev sets (held out, removed from training in step 3)")
+    train_man, train_ok = verify(train_corpora(raw), "Training corpora")
+    dev_man, dev_ok = verify(dev_sets(raw), "Development sets (held out, removed from training in step 3)")
     out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("w") as f:
         json.dump({"train": train_man, "dev": dev_man, "tolerance": TOLERANCE}, f, indent=2)
     print(f"\nManifest written to {out}")
     if not (train_ok and dev_ok):
-        print("\nFAIL: missing or mismatched corpora; check the raw data layout before step 2.", file=sys.stderr)
+        print("\nERROR: some corpora are missing or do not have the expected number of lines. Check the raw data layout before step 2.", file=sys.stderr)
         sys.exit(1)
-    print(f"\nPASS: all counts match paper Table 1 within +-{TOLERANCE}.")
+    print(f"\nAll corpora found with the expected number of lines (tolerance {TOLERANCE}).")
 
 
 if __name__ == "__main__":

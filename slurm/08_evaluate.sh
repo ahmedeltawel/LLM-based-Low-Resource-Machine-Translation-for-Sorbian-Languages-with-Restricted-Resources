@@ -17,7 +17,7 @@ case "$PROMPT_FORMAT" in
     NAME="${NAME:-${MODEL}_${VARIANT}}"
     ;;
   nrc)
-    MODEL_DIR="${MODEL_DIR:-$RUNS_ROOT/nrc_qwen25_15b}"
+    MODEL_DIR="${MODEL_DIR:-${NRC_OUTPUT_DIR:-$RUNS_ROOT/nrc_qwen25_15b}}"
     NAME="${NAME:-nrc_qwen25_15b}"
     ;;
   *) echo "PROMPT_FORMAT must be qwen or nrc (got $PROMPT_FORMAT)"; exit 1 ;;

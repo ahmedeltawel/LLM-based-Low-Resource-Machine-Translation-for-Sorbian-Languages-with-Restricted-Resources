@@ -23,14 +23,14 @@ python -u replications/nrc/02_clean.py \
     --out-dir "$NRC_DIR/cleaned" \
     --manifest-out "$NRC_DIR/cleaned_manifest.json"
 
-python -u replications/nrc/03_dedupe.py \
+python -u replications/nrc/03_remove_dev_pairs.py \
     --manifest-raw "$NRC_DIR/manifest.json" \
     --manifest-clean "$NRC_DIR/cleaned_manifest.json" \
-    --out-dir "$NRC_DIR/deduped" \
-    --manifest-out "$NRC_DIR/deduped_manifest.json"
+    --out-dir "$NRC_DIR/filtered" \
+    --manifest-out "$NRC_DIR/filtered_manifest.json"
 
 python -u replications/nrc/04_format_sft.py \
-    --manifest "$NRC_DIR/deduped_manifest.json" \
+    --manifest "$NRC_DIR/filtered_manifest.json" \
     --out-dir "$NRC_DIR/sft"
 
 echo "done: $NRC_DIR/sft/train.jsonl"

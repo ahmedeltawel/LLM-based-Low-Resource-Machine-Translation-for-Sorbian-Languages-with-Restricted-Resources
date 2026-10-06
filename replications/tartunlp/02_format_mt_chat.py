@@ -2,6 +2,7 @@
 import argparse
 import os
 from pathlib import Path
+
 from datasets import Dataset
 
 LANG_NAMES = {
@@ -222,18 +223,13 @@ def main():
     print(f"  Saved to: {mtrev_path}")
 
     print("\nSUMMARY")
-    print(f"  Parallel pairs loaded:")
-    print(f"    de-hsb:  {len(de_hsb):>10,}  (paper: 636,300)")
-    print(f"    de-dsb:  {len(de_dsb):>10,}  (paper: 212,200)")
-    print(f"    dsb-hsb: {len(dsb_hsb):>10,}  (paper: 62,600)")
-    print(f"")
+    print("  Parallel pairs loaded:")
+    print(f"    de-hsb:  {len(de_hsb):>10,}")
+    print(f"    de-dsb:  {len(de_dsb):>10,}")
+    print(f"    dsb-hsb: {len(dsb_hsb):>10,}")
+    print()
     print(f"  MT dataset:    {len(mt_examples):>10,} examples (de->hsb + de->dsb + hsb->dsb + dsb->hsb)")
     print(f"  MTrev dataset: {len(mtrev_examples):>10,} examples (hsb->de + dsb->de)")
-    print(f"")
-    print(f"  Sample MT example:")
-    sample = mt_examples[0]
-    for msg in sample["messages"]:
-        print(f"    [{msg['role'].upper()}]: {msg['content'][:80]}...")
 
 
 if __name__ == "__main__":

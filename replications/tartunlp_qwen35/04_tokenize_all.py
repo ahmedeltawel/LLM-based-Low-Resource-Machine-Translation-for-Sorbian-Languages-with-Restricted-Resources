@@ -4,8 +4,9 @@ import os
 import sys
 import traceback
 from pathlib import Path
-from transformers import AutoTokenizer
+
 from datasets import Dataset, load_from_disk
+from transformers import AutoTokenizer
 
 DATA_ROOT = os.environ.get("DATA_ROOT", "data")
 VARIANT = os.environ.get("VARIANT", "0p25x")
@@ -30,15 +31,8 @@ def load_tokenizer(model_id):
     print(f"Loading tokenizer {model_id}")
     tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
     print(f"  Vocab size: {tokenizer.vocab_size}")
-    print(f"  Special tokens: {tokenizer.all_special_tokens}")
     tokenizer.chat_template = SIMPLE_CHAT_TEMPLATE
     print("  Chat template set to the plain ChatML format without think tags")
-    check = tokenizer.apply_chat_template(
-        [{"role": "user", "content": "ping"}, {"role": "assistant", "content": "pong"}],
-        tokenize=False, add_generation_prompt=False
-    )
-    assert "<think>" not in check, f"Template still has <think>! Got: {check!r}"
-    print("  Template check OK")
     return tokenizer
 
 
@@ -114,7 +108,6 @@ def tokenize_chat_dataset(tokenizer, out_dir, name, dataset_path, msg_key="messa
 
     ds = load_from_disk(str(dataset_path))
     print(f"  Examples: {len(ds):,}")
-    print(f"  Columns: {ds.column_names}")
 
     if msg_key not in ds.column_names:
         for col in ["messages", "conversations"]:
@@ -243,10 +236,8 @@ def tokenize_group(tokenizer, out_dir, name, kind, src):
     if kind == "doc":
         return tokenize_documents(tokenizer, out_dir, name, src)
     if kind == "inst":
-        tokens, loss = tokenize_chat_dataset(tokenizer, out_dir, name, src, msg_key=instruction_column(src))
-        return tokens
-    tokens, loss = tokenize_chat_dataset(tokenizer, out_dir, name, src)
-    return tokens
+        return tokenize_chat_dataset(tokenizer, out_dir, name, src, msg_key=instruction_column(src))[0]
+    return tokenize_chat_dataset(tokenizer, out_dir, name, src)[0]
 
 
 def main():

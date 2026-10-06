@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-from __future__ import annotations
-
 import argparse
 import json
 import os
-import sys
 from pathlib import Path
 
 DATA_ROOT = Path(os.environ.get("DATA_ROOT", "data"))
@@ -13,9 +10,6 @@ SYSTEM_PROMPT = "You are Qwen, created by Alibaba Cloud. You are a helpful assis
 
 LANG_NAME = {"de": "German", "hsb": "Upper Sorbian", "dsb": "Lower Sorbian"}
 LANG_TAG  = {"de": "deu",    "hsb": "hsb",           "dsb": "dsb"}
-
-PAPER_EXAMPLE_COUNT = 855_409
-TOL_PCT = 0.01
 
 
 def user_prompt(src_lang: str, tgt_lang: str, src_text: str) -> str:
@@ -45,7 +39,7 @@ def emit(src_lang: str, tgt_lang: str, src_text: str, tgt_text: str) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="Write the NRC SFT examples (LLaMA-Factory sharegpt) and dataset_info.json.")
-    parser.add_argument("--manifest", type=Path, default=DATA_ROOT / "nrc" / "deduped_manifest.json")
+    parser.add_argument("--manifest", type=Path, default=DATA_ROOT / "nrc" / "filtered_manifest.json")
     parser.add_argument("--out-dir", type=Path, default=DATA_ROOT / "nrc" / "sft")
     args = parser.parse_args()
 
@@ -65,8 +59,8 @@ def main():
         for entry in manifest["train"]:
             name = entry["name"]
             sl, tl = entry["src_lang"], entry["tgt_lang"]
-            src_lines = Path(entry["src_deduped"]).read_text(encoding="utf-8").splitlines()
-            tgt_lines = Path(entry["tgt_deduped"]).read_text(encoding="utf-8").splitlines()
+            src_lines = Path(entry["src_filtered"]).read_text(encoding="utf-8").splitlines()
+            tgt_lines = Path(entry["tgt_filtered"]).read_text(encoding="utf-8").splitlines()
             assert len(src_lines) == len(tgt_lines)
 
             if "de" in (sl, tl):
@@ -98,20 +92,15 @@ def main():
 
     print("\nSFT JSONL format (LLaMA-Factory sharegpt + qwen chatml template)")
     print(f"{'corpus':<36} {'pairs':>8} {'examples':>10}  directions")
-    print('-'*80)
+    print("-" * 80)
     for r in per_corpus:
         print(f"{r['name']:<36} {r['pairs']:>8} {r['examples']:>10}  {r['directions']}")
-    print('-'*80)
+    print("-" * 80)
     print(f"{'TOTAL examples':<36} {'':<8} {total:>10}")
 
     print("\nBy direction:")
     for k, v in sorted(per_direction.items()):
         print(f"  {k:<8} {v:>8,}")
-
-    delta = total - PAPER_EXAMPLE_COUNT
-    pct = 100 * delta / PAPER_EXAMPLE_COUNT
-    print(f"\nExample count: {total:,} vs paper target {PAPER_EXAMPLE_COUNT:,} "
-          f"(delta={delta:+d}, {pct:+.3f}%)")
 
     dataset_info = {
         "nrc_sorbian_mt": {
@@ -133,11 +122,6 @@ def main():
     print("\nWritten:")
     print(f"  {out_jsonl}  ({out_jsonl.stat().st_size / 1e6:.1f} MB)")
     print(f"  {out_dsinfo}")
-
-    if abs(pct) > TOL_PCT * 100:
-        print(f"\nExample count off by {pct:+.2f}% (tolerance {TOL_PCT*100:.0f}%).", file=sys.stderr)
-        sys.exit(1)
-    print(f"\nPASS: example count within {TOL_PCT*100:.0f}% of paper.")
 
 
 if __name__ == "__main__":

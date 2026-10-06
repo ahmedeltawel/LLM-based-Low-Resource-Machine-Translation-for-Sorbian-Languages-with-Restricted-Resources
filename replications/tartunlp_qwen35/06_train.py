@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 import argparse
+import logging
 import os
 import shutil
 import sys
 import time
-import logging
 from pathlib import Path
 
 import torch
 import torch.distributed as dist
 from torch.utils.data import DataLoader, DistributedSampler
-
-from transformers import AutoTokenizer, AutoConfig, Qwen3_5ForCausalLM
+from transformers import AutoConfig, AutoTokenizer, Qwen3_5ForCausalLM
 
 sys.path.insert(0, str(Path(__file__).parent))
 from train_utils import (
@@ -21,78 +20,6 @@ from train_utils import (
     collate_fn,
     compute_masked_loss,
 )
-
-
-def run_sanity_checks(config, model, dataset, device, rank):
-    if rank != 0:
-        return
-
-    print("\nSanity checks")
-
-    print("\n[CHECK 1] Dataset")
-    print(f"  Path: {config.data_path}")
-    print(f"  Sequences: {len(dataset):,}")
-    print(f"  Expected sequences: ~{config.max_steps * config.total_batch_size:,}")
-
-    sample = dataset[0]
-    assert sample["input_ids"].shape[0] == config.max_seq_len, (
-        f"Sequence length mismatch: got {sample['input_ids'].shape[0]}, expected {config.max_seq_len}"
-    )
-    assert sample["loss_mask"].shape[0] == config.max_seq_len
-    loss_ratio = sample["loss_mask"].sum().item() / config.max_seq_len
-    print(f"  Sample seq length: {sample['input_ids'].shape[0]}")
-    print(f"  Sample loss ratio: {loss_ratio:.2%}")
-    print("  Dataset OK")
-
-    print("\n[CHECK 2] Model")
-    param_count = sum(p.numel() for p in model.parameters())
-    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"  Parameters: {param_count:,} ({param_count/1e9:.2f}B)")
-    print(f"  Trainable: {trainable:,} ({trainable/1e9:.2f}B)")
-    print(f"  Dtype: {next(model.parameters()).dtype}")
-    print(f"  Gradient checkpointing: {config.gradient_checkpointing}")
-    print("  Model OK")
-
-    world_size = int(os.environ.get("WORLD_SIZE", 1))
-    if world_size == 1:
-        print("\n[CHECK 3] Forward pass (1 sample)")
-        model.eval()
-        with torch.no_grad():
-            input_ids = sample["input_ids"].unsqueeze(0).to(device)
-            loss_mask = sample["loss_mask"].unsqueeze(0).to(device)
-            outputs = model(input_ids=input_ids)
-            loss, n_tokens = compute_masked_loss(outputs.logits, input_ids, loss_mask)
-            print(f"  Loss: {loss.item():.4f}")
-            print(f"  Loss tokens: {n_tokens:,}")
-            print("  Forward pass OK")
-        model.train()
-    else:
-        print(f"\n[CHECK 3] Forward pass (skipped on {world_size}-GPU FSDP)")
-
-    print("\n[CHECK 4] Training config")
-    print(f"  World size: {world_size}")
-    print(f"  Per-device batch: {config.per_device_batch_size}")
-    print(f"  Grad accum steps: {config.grad_accum_steps}")
-    print(f"  Effective batch size: {config.per_device_batch_size * world_size * config.grad_accum_steps}")
-    assert config.per_device_batch_size * world_size * config.grad_accum_steps == config.total_batch_size, (
-        "Effective batch size does not match total_batch_size!"
-    )
-    print(f"  Total steps: {config.max_steps}")
-    print(f"  LR schedule: warmup({config.warmup_steps}) -> stable({config.stable_steps}) -> decay({config.decay_steps})")
-    print("  Config OK")
-
-    print("\n[CHECK 5] GPU memory")
-    if torch.cuda.is_available():
-        allocated = torch.cuda.memory_allocated(device) / 1e9
-        reserved = torch.cuda.memory_reserved(device) / 1e9
-        total = torch.cuda.get_device_properties(device).total_memory / 1e9
-        print(f"  Allocated: {allocated:.2f} GB")
-        print(f"  Reserved: {reserved:.2f} GB")
-        print(f"  Total: {total:.2f} GB")
-        print(f"  Free: {total - reserved:.2f} GB")
-    print("  Memory OK")
-
-    print("\nAll sanity checks passed\n")
 
 
 def save_checkpoint(model, step, config, rank):
@@ -151,7 +78,7 @@ def setup_distributed():
 def setup_logging(config, rank):
     if rank != 0:
         logging.basicConfig(level=logging.WARNING)
-        return None
+        return
 
     log_dir = Path(config.log_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -165,7 +92,6 @@ def setup_logging(config, rank):
             logging.StreamHandler(),
         ],
     )
-    return logging.getLogger(__name__)
 
 
 def main():
@@ -180,7 +106,7 @@ def main():
     config = TrainConfig()
 
     rank, local_rank, world_size, device = setup_distributed()
-    logger = setup_logging(config, rank)
+    setup_logging(config, rank)
 
     if rank == 0:
         logging.info(f"Starting training on {world_size} GPUs")
@@ -279,8 +205,6 @@ def main():
         max_lr=config.learning_rate,
     )
 
-    run_sanity_checks(config, model, dataset, device, rank)
-
     if world_size > 1:
         dist.barrier()
 
@@ -290,6 +214,7 @@ def main():
         logging.info(f"  Batch: {config.total_batch_size} (per_device={config.per_device_batch_size}, "
                      f"accum={config.grad_accum_steps}, gpus={world_size})")
         logging.info(f"  Tokens per step: {config.total_batch_size * config.max_seq_len:,}")
+        logging.info(f"  LR schedule: warmup({config.warmup_steps}) -> stable({config.stable_steps}) -> decay({config.decay_steps})")
 
     global_step = 0
     optimizer.zero_grad()
@@ -321,9 +246,9 @@ def main():
             micro_step = (batch_idx + 1) % config.grad_accum_steps
             if micro_step == 0:
                 if world_size > 1:
-                    model.clip_grad_norm_(1.0)
+                    model.clip_grad_norm_(config.grad_clip)
                 else:
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip)
 
                 optimizer.step()
                 lr = scheduler.step()

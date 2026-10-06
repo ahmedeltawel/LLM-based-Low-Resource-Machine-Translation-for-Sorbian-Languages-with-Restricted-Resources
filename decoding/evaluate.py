@@ -143,19 +143,19 @@ def main():
             hypotheses[i] = tokenizer.decode(row[prefix_length:], skip_special_tokens=True)
 
     if args.prompt_format == "qwen":
-        clean = [first_line(hypothesis) for hypothesis in hypotheses]
+        translations = [first_line(hypothesis) for hypothesis in hypotheses]
     else:
-        clean = [extract_tagged(hypothesis, pair) for hypothesis in hypotheses]
-    clean_chrf = sacrebleu.corpus_chrf(
-        clean, [references], char_order=6, word_order=2, beta=2
+        translations = [extract_tagged(hypothesis, pair) for hypothesis in hypotheses]
+    chrf = sacrebleu.corpus_chrf(
+        translations, [references], char_order=6, word_order=2, beta=2
     ).score
-    clean_bleu = sacrebleu.corpus_bleu(clean, [references]).score
+    bleu = sacrebleu.corpus_bleu(translations, [references]).score
 
     output_dir.mkdir(parents=True, exist_ok=True)
     samples_path = output_dir / f"samples_deu-{pair}.jsonl"
     with samples_path.open("w", encoding="utf-8") as handle:
-        for index, (source, reference, hypothesis, cleaned) in enumerate(
-            zip(sources, references, hypotheses, clean)
+        for index, (source, reference, hypothesis, translation) in enumerate(
+            zip(sources, references, hypotheses, translations)
         ):
             handle.write(
                 json.dumps(
@@ -164,7 +164,7 @@ def main():
                         "source": source,
                         "reference": reference,
                         "hypothesis": hypothesis,
-                        "clean_hypothesis": cleaned,
+                        "translation": translation,
                     },
                     ensure_ascii=False,
                 )
@@ -174,8 +174,8 @@ def main():
     result = {
         "pair": pair,
         "n": len(hypotheses),
-        "clean_chrfpp": clean_chrf,
-        "clean_bleu": clean_bleu,
+        "chrfpp": chrf,
+        "bleu": bleu,
         "model": args.model,
         "dev_csv": str(csv_path),
         "prompt_format": args.prompt_format,
@@ -190,7 +190,7 @@ def main():
     print(f"wrote {samples_path}", flush=True)
     print(f"wrote {metrics_path}", flush=True)
     print(
-        f"deu-{pair}: chrF++ {clean_chrf:.2f}  BLEU {clean_bleu:.2f}  n={len(hypotheses)}  "
+        f"deu-{pair}: chrF++ {chrf:.2f}  BLEU {bleu:.2f}  n={len(hypotheses)}  "
         f"({result['elapsed_seconds']:.0f}s)",
         flush=True,
     )

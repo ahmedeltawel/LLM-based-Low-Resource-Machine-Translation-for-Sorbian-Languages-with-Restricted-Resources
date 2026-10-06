@@ -10,7 +10,7 @@ import sacrebleu
 def load(path):
     with open(path, encoding="utf-8") as handle:
         rows = [json.loads(line) for line in handle]
-    return [r["clean_hypothesis"] for r in rows], [r["reference"] for r in rows]
+    return [r["translation"] for r in rows], [r["reference"] for r in rows]
 
 
 def build_metric(name):
@@ -36,11 +36,11 @@ def main():
     def score(stats):
         return metric._compute_score_from_stats(list(stats.sum(0))).score
 
-    hyp_a, ref_a = load(args.a)
-    hyp_b, ref_b = load(args.b)
+    translations_a, ref_a = load(args.a)
+    translations_b, ref_b = load(args.b)
     assert ref_a == ref_b, f"reference mismatch {args.a} {args.b}"
-    A = np.array(metric._extract_corpus_statistics(hyp_a, [ref_a]), dtype=np.float64)
-    B = np.array(metric._extract_corpus_statistics(hyp_b, [ref_b]), dtype=np.float64)
+    A = np.array(metric._extract_corpus_statistics(translations_a, [ref_a]), dtype=np.float64)
+    B = np.array(metric._extract_corpus_statistics(translations_b, [ref_b]), dtype=np.float64)
 
     n = len(A)
     score_a = score(A)

@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 import argparse
 import os
+from collections import defaultdict
 from pathlib import Path
-from datasets import load_from_disk
+
+from datasets import Dataset, load_from_disk
+
+TARGET_LANGS = {"en", "de", "pl", "cs", "sk", "sl"}
 
 LANG_MAP = {
     "eng": "en", "deu": "de", "pol": "pl", "ces": "cs", "slk": "sk", "slv": "sl",
@@ -18,7 +22,7 @@ def normalize_lang(lang):
 
 
 def is_target_lang(lang):
-    return normalize_lang(lang) in {"en", "de", "pl", "cs", "sk", "sl"}
+    return normalize_lang(lang) in TARGET_LANGS
 
 
 def detect_language_column(ds):
@@ -31,11 +35,8 @@ def detect_language_column(ds):
 def filter_aya(ds):
     lang_col = detect_language_column(ds)
     if lang_col is None:
-        print("  WARNING: No language column found in Aya, checking columns:", ds.column_names)
+        print("  No language column found. Keeping all.")
         return ds
-
-    sample_langs = set(ds[lang_col][:10])
-    print(f"  Language column: '{lang_col}', sample values: {sample_langs}")
 
     filtered = ds.filter(lambda x: is_target_lang(x[lang_col]), num_proc=4)
     return filtered
@@ -44,8 +45,6 @@ def filter_aya(ds):
 def filter_magpie(ds):
     lang_col = detect_language_column(ds)
     if lang_col:
-        sample_langs = set(ds[lang_col][:10])
-        print(f"  Language column: '{lang_col}', sample values: {sample_langs}")
         filtered = ds.filter(lambda x: is_target_lang(x[lang_col]), num_proc=4)
         return filtered
 
@@ -53,8 +52,58 @@ def filter_magpie(ds):
     return ds
 
 
+def build_oasst2_conversations(ds):
+    messages = {}
+    children = defaultdict(list)
+
+    for row in ds:
+        msg_id = row["message_id"]
+        parent_id = row["parent_id"]
+        messages[msg_id] = row
+        if parent_id:
+            children[parent_id].append(msg_id)
+
+    leaves = [mid for mid in messages if mid not in children]
+    print(f"  Found {len(leaves)} leaf nodes")
+
+    conversations = []
+
+    for leaf_id in leaves:
+        path = []
+        current = leaf_id
+        while current:
+            path.append(messages[current])
+            current = messages[current]["parent_id"]
+        path.reverse()
+
+        if len(path) < 2:
+            continue
+
+        if path[-1]["role"] != "assistant":
+            continue
+
+        if any(m.get("deleted", False) for m in path):
+            continue
+
+        lang = path[0].get("lang", "")
+        if lang not in TARGET_LANGS:
+            continue
+
+        conv = []
+        for msg in path:
+            role = msg["role"]
+            if role == "prompter":
+                role = "user"
+            conv.append({"role": role, "content": msg["text"]})
+
+        if conv and conv[0]["role"] == "user":
+            conversations.append({"conversations": conv, "lang": lang})
+
+    return Dataset.from_list(conversations)
+
+
 def filter_flan_v2(ds):
-    print("  FLAN is all English per paper Table 11. Keeping all.")
+    print("  FLAN is mostly English. Keeping all.")
     return ds
 
 
@@ -64,7 +113,6 @@ def process_dataset(name, path, filter_fn, output_dir):
 
     ds = load_from_disk(str(path))
     print(f"  Loaded: {len(ds)} examples")
-    print(f"  Columns: {ds.column_names}")
 
     filtered = filter_fn(ds)
     print(f"  After filtering: {len(filtered)} examples")
@@ -79,7 +127,7 @@ def process_dataset(name, path, filter_fn, output_dir):
 def main():
     data_root = os.environ.get("DATA_ROOT", "data")
     parser = argparse.ArgumentParser(
-        description="Filter the instruction datasets to en, de, pl, cs, sk and sl"
+        description="Filter the instruction datasets to en, de, pl, cs, sk and sl and build the OpenAssistant 2 conversations"
     )
     parser.add_argument(
         "--input-dir",
@@ -107,6 +155,7 @@ def main():
     datasets_config = [
         ("aya", "aya", filter_aya),
         ("magpie", "magpie", filter_magpie),
+        ("oasst2", "oasst2", build_oasst2_conversations),
         ("flan_v2", "flan_v2", filter_flan_v2),
     ]
 

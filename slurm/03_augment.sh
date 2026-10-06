@@ -17,7 +17,6 @@ AUG_DIR="$DATA_ROOT/augmentation"
 python -u data_augmentation/01_download_filter.py \
     --download-dir "$AUG_DIR" \
     --out "$AUG_DIR/filtered_de.txt"
-wc -l "$AUG_DIR/filtered_de.txt"
 
 python -u data_augmentation/02_dedup_sample.py \
     --filtered "$AUG_DIR/filtered_de.txt" \
@@ -54,5 +53,4 @@ python -u data_augmentation/05_build_aug_dataset.py \
     --clean "$AUG_DIR/clean.csv" \
     --mt "$DATA_ROOT/processed/mt/mt" \
     --out "$AUG_DIR/mt_aug_0p25x" \
-    --pairs "$AUG_PAIRS" \
     --seed "$AUG_SEED"

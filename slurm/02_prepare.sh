@@ -18,10 +18,6 @@ python -u replications/tartunlp/01_filter_instructions.py \
   --input-dir "$RAW/instructions" \
   --output-dir "$PROCESSED/instructions"
 
-python -u replications/tartunlp/01b_oasst2_conversations.py \
-  --input-dir "$RAW/instructions" \
-  --output-dir "$PROCESSED/instructions"
-
 python -u replications/tartunlp/02_format_mt_chat.py \
   --parallel-dir "$RAW/parallel" \
   --out-dir "$PROCESSED/mt"

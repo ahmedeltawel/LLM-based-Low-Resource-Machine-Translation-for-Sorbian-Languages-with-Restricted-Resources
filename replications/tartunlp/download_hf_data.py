@@ -2,13 +2,14 @@
 import argparse
 import os
 from pathlib import Path
+
 from datasets import load_dataset
 
 INSTRUCTION_DATASETS = [
-    ("magpie", "Magpie-Align/Magpie-Llama-3.1-Pro-MT-300K-Filtered", "Magpie"),
-    ("flan_v2", "ai2-adapt-dev/flan_v2_converted", "FLAN"),
-    ("oasst2", "OpenAssistant/oasst2", "OpenAssistant2"),
-    ("aya", "CohereLabs/aya_dataset", "Aya"),
+    ("magpie", "Magpie-Align/Magpie-Llama-3.1-Pro-MT-300K-Filtered", "Magpie", "train"),
+    ("flan_v2", "ai2-adapt-dev/flan_v2_converted", "FLAN", "train"),
+    ("oasst2", "OpenAssistant/oasst2", "OpenAssistant 2", "train+validation"),
+    ("aya", "CohereLabs/aya_dataset", "Aya", "train"),
 ]
 
 
@@ -31,9 +32,9 @@ def download_wikipedia(raw_dir):
 
 
 def download_instructions(raw_dir):
-    for name, hf_id, label in INSTRUCTION_DATASETS:
-        print(f"Downloading {hf_id}...")
-        ds = load_dataset(hf_id, split="train")
+    for name, hf_id, label, split in INSTRUCTION_DATASETS:
+        print(f"Downloading {hf_id} ({split})...")
+        ds = load_dataset(hf_id, split=split)
         out_path = raw_dir / "instructions" / name
         ds.save_to_disk(str(out_path))
         print(f"  {label}: {len(ds)} examples -> {out_path}")

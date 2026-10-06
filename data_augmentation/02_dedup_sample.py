@@ -1,19 +1,35 @@
-import argparse, hashlib, os, random, sys
+#!/usr/bin/env python3
+import argparse
+import hashlib
+import os
+import random
+import sys
 
 
 def main():
     data_root = os.environ.get("DATA_ROOT", "data")
-    ap = argparse.ArgumentParser(description="Remove German sentences already in the training or WMT25 dev/test data and sample the sentences to translate.")
-    ap.add_argument("--filtered", default=f"{data_root}/augmentation/filtered_de.txt",
-                    help="output of 01_download_filter.py")
-    ap.add_argument("--processed-dir", default=f"{data_root}/processed",
-                    help="directory holding parallel/de-hsb/de-hsb.de and parallel/de-dsb/de-dsb.de")
-    ap.add_argument("--dev-test-dir", default=f"{data_root}/raw/llms-limited-resources2025",
-                    help="clone of llms-limited-resources2025 (Sorbian/{hsb,dsb}/MT/{dev,test}.de-*.de)")
-    ap.add_argument("--out", default=f"{data_root}/augmentation/sample_750k_de.txt")
-    ap.add_argument("--target", type=int, default=750_000, help="number of sentences to keep")
-    ap.add_argument("--seed", type=int, default=int(os.environ.get("AUG_SEED", 17)))
-    args = ap.parse_args()
+    parser = argparse.ArgumentParser(
+        description="Remove German sentences already in the training or WMT25 dev/test data and sample the sentences to translate."
+    )
+    parser.add_argument(
+        "--filtered",
+        default=f"{data_root}/augmentation/filtered_de.txt",
+        help="output of 01_download_filter.py",
+    )
+    parser.add_argument(
+        "--processed-dir",
+        default=f"{data_root}/processed",
+        help="directory holding parallel/de-hsb/de-hsb.de and parallel/de-dsb/de-dsb.de",
+    )
+    parser.add_argument(
+        "--dev-test-dir",
+        default=f"{data_root}/raw/llms-limited-resources2025",
+        help="clone of llms-limited-resources2025 (Sorbian/{hsb,dsb}/MT/{dev,test}.de-*.de)",
+    )
+    parser.add_argument("--out", default=f"{data_root}/augmentation/sample_750k_de.txt")
+    parser.add_argument("--target", type=int, default=750_000, help="number of sentences to keep")
+    parser.add_argument("--seed", type=int, default=int(os.environ.get("AUG_SEED", 17)))
+    args = parser.parse_args()
 
     existing_de = [
         f"{args.processed_dir}/parallel/de-hsb/de-hsb.de",
@@ -51,7 +67,7 @@ def main():
 
     random.seed(args.seed)
     random.shuffle(candidates)
-    keep = candidates[:args.target]
+    keep = candidates[: args.target]
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     with open(args.out, "w") as f:
         for s in keep:

@@ -1,6 +1,8 @@
+#!/usr/bin/env python3
 import os
-import torch
 from dataclasses import dataclass, field
+
+import torch
 from datasets import load_from_disk
 
 
@@ -28,15 +30,11 @@ class TrainConfig:
     max_steps: int = 2391
     warmup_steps: int = 256
     decay_steps: int = 768
-    precision: str = "bfloat16"
-
-    fsdp_strategy: str = "SHARD_GRAD_OP"
 
     per_device_batch_size: int = field(default_factory=lambda: int(os.environ.get("PER_DEVICE_BATCH_SIZE", "2")))
     gradient_checkpointing: bool = field(default_factory=lambda: bool(int(os.environ.get("GRADIENT_CHECKPOINTING", "0"))))
     save_every_steps: int = 200
     log_every_steps: int = 10
-    eval_every_steps: int = 500
     grad_clip: float = 1.0
 
     @property
